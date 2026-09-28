@@ -1,0 +1,2206 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#121118] text-zinc-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Fuggler Vault & Adoption Studio</title>
+  <meta name="description" content="Official funny ugly monster registry, collection vault, custom monster lab, and printable adoption certificate studio.">
+  <meta name="theme-color" content="#121118">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React 18 & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel for in-browser JSX parsing -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            fuggler: {
+              bg: '#121118',
+              card: '#1e1b2e',
+              border: '#4c3875',
+              neonGreen: '#39ff14',
+              neonPink: '#ff007f',
+              neonYellow: '#ffe600',
+              patch: '#2d2645',
+              felt: '#3d345c',
+              teeth: '#fbf8eb'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"Space Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      touch-action: manipulation;
+      background-color: #121118;
+      background-image:
+        radial-gradient(rgba(255, 0, 127, 0.08) 1px, transparent 1px),
+        radial-gradient(rgba(57, 255, 20, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+      background-position: 0 0, 12px 12px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(18, 17, 24, 0.8);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #ff007f;
+      border-radius: 9999px;
+    }
+
+    .felt-patch {
+      background-color: #1e1b2e;
+      border: 3px dashed #7a5ba8;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), inset 0 0 12px rgba(255, 0, 127, 0.1);
+    }
+
+    .felt-patch-owned {
+      border: 3px solid #39ff14;
+      box-shadow: 0 0 18px rgba(57, 255, 20, 0.3), inset 0 0 15px rgba(57, 255, 20, 0.15);
+    }
+
+    /* Print styles for adoption certificate */
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+      body * {
+        visibility: hidden;
+      }
+      #print-certificate-container, #print-certificate-container * {
+        visibility: visible;
+      }
+      #print-certificate-container {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        padding: 24px;
+        background: white !important;
+        color: black !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 99999;
+      }
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans select-none overflow-hidden text-zinc-100 antialiased selection:bg-[#ff007f] selection:text-white">
+  <div id="root" class="h-full flex flex-col"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // Palette options for Monster Lab
+    const COLOR_PALETTES = [
+      { label: 'Toxic Slime', body: '#84cc16', stitch: '#365314' },
+      { label: 'Neon Fuzz', body: '#a855f7', stitch: '#581c87' },
+      { label: 'Hot Fuchsia', body: '#ec4899', stitch: '#831843' },
+      { label: 'Deep Abyss', body: '#1e1b4b', stitch: '#312e81' },
+      { label: 'Feral Orange', body: '#f97316', stitch: '#7c2d12' },
+      { label: 'Bruised Charcoal', body: '#27272a', stitch: '#52525b' },
+      { label: 'Cyan Ghoul', body: '#06b6d4', stitch: '#164e63' },
+      { label: 'Rotten Gold', body: '#ca8a04', stitch: '#713f12' },
+    ];
+
+    const EYE_COLORS = ['#ef4444', '#facc15', '#22c55e', '#38bdf8', '#a855f7', '#18181b', '#ffffff', '#fbbf24'];
+
+    // 42 Authentic Fugglers Catalog
+    const INITIAL_MONSTERS = [
+      {
+        id: 'fuggler-rabid-rabbit',
+        name: 'Rabid Rabbit',
+        species: 'Leporid Monstrositas',
+        series: 'Series 1',
+        rarity: 'Common',
+        teethType: 'Human Dentures',
+        teethCount: 28,
+        buttonEyeDesc: 'Mismatched black & blood-red button eyes',
+        mischiefTrait: 'Chews Wi-Fi cables while making intense eye contact',
+        description: 'Looks sweet and fluffy from behind until it turns around and reveals a terrifying mouthful of uncanny human teeth.',
+        warningNote: 'Keep away from valuable paperwork, heirloom slippers, and carrot cakes.',
+        svgConfig: {
+          bodyColor: '#a855f7',
+          feltPattern: 'burlap',
+          eyeColorLeft: '#ef4444',
+          eyeColorRight: '#18181b',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bunny',
+          stitchColor: '#4c1d95',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-gaptooth-mcgruff',
+        name: 'Gaptooth McGruff',
+        species: 'Dentata Hiatus',
+        series: 'Series 1',
+        rarity: 'Common',
+        teethType: 'Wide Gap',
+        teethCount: 24,
+        buttonEyeDesc: 'Bulging chartreuse button eyes with loose threads',
+        mischiefTrait: 'Hides your left socks in the freezer for fun',
+        description: 'Possesses a gap wide enough between its front incisors to whistle when it breathes in your face while you sleep.',
+        warningNote: 'Will relentlessly hoard loose change under the sofa cushions.',
+        svgConfig: {
+          bodyColor: '#84cc16',
+          feltPattern: 'spots',
+          eyeColorLeft: '#eab308',
+          eyeColorRight: '#22c55e',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bear',
+          stitchColor: '#365314',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-gold-gnasher',
+        name: 'King Gnasher (Chase Edition)',
+        species: 'Aureum Gnasheris',
+        series: 'Gold Chase',
+        rarity: 'Golden BUTT-on',
+        teethType: 'Golden Grill',
+        teethCount: 32,
+        buttonEyeDesc: 'Gleaming 24k-finish sewn-on metal eyelets',
+        mischiefTrait: 'Demands royalties whenever you laugh in its presence',
+        description: 'The crowning jewel of any Fuggler hoard. Features the official embossed golden BUTT-on verification mark on its rear.',
+        warningNote: 'Prone to stealing antique silverware and judging your life choices.',
+        svgConfig: {
+          bodyColor: '#18181b',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#fbbf24',
+          eyeColorRight: '#fbbf24',
+          eyeStyle: 'buttons',
+          mouthStyle: 'golden-teeth',
+          earsStyle: 'horns',
+          stitchColor: '#f59e0b',
+          hasGoldButton: true,
+          accessory: 'monocle'
+        }
+      },
+      {
+        id: 'fuggler-sir-horns-a-lot',
+        name: 'Sir Horns-a-Lot',
+        species: 'Cornu Stultus',
+        series: 'Series 1',
+        rarity: 'Rare',
+        teethType: 'Double Row',
+        teethCount: 36,
+        buttonEyeDesc: 'Cross-stitched horn-rimmed resin buttons',
+        mischiefTrait: 'Headbutts bedroom doors precisely at 3:17 AM',
+        description: 'Distinguished gentleman monster with crooked stubby horns and double the dental hazard. Never leaves a cookie crumb uninvestigated.',
+        warningNote: 'Do not invite to formal tea parties or near delicate ceramic china.',
+        svgConfig: {
+          bodyColor: '#0284c7',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#f97316',
+          eyeColorRight: '#0284c7',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'horns',
+          stitchColor: '#0369a1',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-count-fuggula',
+        name: 'Count Fuggula',
+        species: 'Vampyrus Feltus',
+        series: 'Series 2',
+        rarity: 'Rare',
+        teethType: 'Vampire Fangs',
+        teethCount: 26,
+        buttonEyeDesc: 'Bloodshot crimson glass eyes that seem to track movement',
+        mischiefTrait: 'Replaces strawberry jam with hot sauce when unobserved',
+        description: 'Dressed in sinister charcoal felt with miniature plush bat wings. Hates direct sunlight and garlic bread.',
+        warningNote: 'Sleep with your collar pulled all the way up.',
+        svgConfig: {
+          bodyColor: '#312e81',
+          feltPattern: 'plain',
+          eyeColorLeft: '#dc2626',
+          eyeColorRight: '#dc2626',
+          eyeStyle: 'creepy-glass',
+          mouthStyle: 'fangs',
+          earsStyle: 'bat',
+          stitchColor: '#4338ca',
+          hasGoldButton: false,
+          accessory: 'bandage'
+        }
+      },
+      {
+        id: 'fuggler-annoyed-alien',
+        name: 'Annoyed Alien',
+        species: 'Extraterrestris Scurra',
+        series: 'Lab Misfits',
+        rarity: 'Chase',
+        teethType: 'Human Dentures',
+        teethCount: 30,
+        buttonEyeDesc: 'Tri-cluster of glow-in-the-dark lime buttons',
+        mischiefTrait: 'Broadcasts low-frequency static directly into your radio',
+        description: 'Crash-landed in the toy factory incinerator and survived out of sheer spite. Glows faintly under blacklight.',
+        warningNote: 'Do not attempt telepathic contact without earplugs.',
+        svgConfig: {
+          bodyColor: '#10b981',
+          feltPattern: 'spots',
+          eyeColorLeft: '#84cc16',
+          eyeColorRight: '#22c55e',
+          eyeStyle: 'cyclops',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'alien',
+          stitchColor: '#047857',
+          hasGoldButton: false,
+          accessory: 'zipper'
+        }
+      },
+      {
+        id: 'fuggler-suspicious-fox',
+        name: 'Suspicious Fox',
+        species: 'Vulpes Dubius',
+        series: 'Series 2',
+        rarity: 'Common',
+        teethType: 'Snaggletooth',
+        teethCount: 22,
+        buttonEyeDesc: 'Sideways tilted oval wooden toggles',
+        mischiefTrait: 'Stares unblinkingly until you drop your sandwich',
+        description: 'Wears a permanently cynical smirk and knows all your browser search history secrets.',
+        warningNote: 'Never trust it near unattended snack bowls.',
+        svgConfig: {
+          bodyColor: '#ea580c',
+          feltPattern: 'plain',
+          eyeColorLeft: '#ca8a04',
+          eyeColorRight: '#1c1917',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bunny',
+          stitchColor: '#9a3412',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-teddy-bear-nightmare',
+        name: 'Teddy Nightmare',
+        species: 'Ursus Horribilis',
+        series: 'Series 1',
+        rarity: 'Common',
+        teethType: 'Human Dentures',
+        teethCount: 32,
+        buttonEyeDesc: 'Classic vintage brown teddy eyes with loose yarn',
+        mischiefTrait: 'Sits innocently on the bed waiting to startle visitors',
+        description: 'At first glance, an adorable honey-brown plush bear. Then it opens its jaw to reveal a complete adult set of human dentures.',
+        warningNote: 'Not suitable for small children, nervous pets, or sane adults.',
+        svgConfig: {
+          bodyColor: '#78350f',
+          feltPattern: 'burlap',
+          eyeColorLeft: '#451a03',
+          eyeColorRight: '#451a03',
+          eyeStyle: 'buttons',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bear',
+          stitchColor: '#b45309',
+          hasGoldButton: false,
+          accessory: 'bandage'
+        }
+      },
+      {
+        id: 'fuggler-clawey-misfit',
+        name: 'Clawey the Misfit',
+        species: 'Crustacea Horrida',
+        series: 'Lab Misfits',
+        rarity: 'Rare',
+        teethType: 'Snaggletooth',
+        teethCount: 20,
+        buttonEyeDesc: 'Oversized neon pink four-hole buttons',
+        mischiefTrait: 'Pinches book spines and folds down random page corners',
+        description: 'An experimental hybrid with mismatched corduroy felt and clumsy felt claws that cannot hold anything except grudges.',
+        warningNote: 'Keep away from fragile glass ornaments.',
+        svgConfig: {
+          bodyColor: '#db2777',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#f43f5e',
+          eyeColorRight: '#ec4899',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'none',
+          stitchColor: '#9d174d',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-screech',
+        name: 'Screech',
+        species: 'Clamor Magnus',
+        series: 'Series 2',
+        rarity: 'Common',
+        teethType: 'Wide Gap',
+        teethCount: 28,
+        buttonEyeDesc: 'Wide startled mother-of-pearl buttons',
+        mischiefTrait: 'Freezes in terror whenever you try to vacuum the carpet',
+        description: 'Frozen in an eternal silent gasp with an extraordinarily deep felt throat and tongue.',
+        warningNote: 'Store in quiet cupboard if possible.',
+        svgConfig: {
+          bodyColor: '#0284c7',
+          feltPattern: 'spots',
+          eyeColorLeft: '#38bdf8',
+          eyeColorRight: '#bae6fd',
+          eyeStyle: 'googly',
+          mouthStyle: 'uneven-teeth',
+          earsStyle: 'bunny',
+          stitchColor: '#0369a1',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-oogah-boogah',
+        name: 'Oogah Boogah',
+        species: 'Shaggus Chaoticos',
+        series: 'Series 2',
+        rarity: 'Rare',
+        teethType: 'Double Row',
+        teethCount: 34,
+        buttonEyeDesc: 'Heterochromic yellow and violet faceted buttons',
+        mischiefTrait: 'Tangling every pair of wired headphones in a 5-mile radius',
+        description: 'Electric lime shaggy felt with jagged uneven gums. Has an irrational hatred of clean countertops.',
+        warningNote: 'Do not brush with anything softer than wire wool.',
+        svgConfig: {
+          bodyColor: '#65a30d',
+          feltPattern: 'plain',
+          eyeColorLeft: '#facc15',
+          eyeColorRight: '#a855f7',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'uneven-teeth',
+          earsStyle: 'horns',
+          stitchColor: '#3f6212',
+          hasGoldButton: false,
+          accessory: 'zipper'
+        }
+      },
+      {
+        id: 'fuggler-grind-tooth',
+        name: 'Grind-Tooth Gasket',
+        species: 'Masticator Furiosus',
+        series: 'Lab Misfits',
+        rarity: 'Chase',
+        teethType: 'Snaggletooth',
+        teethCount: 29,
+        buttonEyeDesc: 'Industrial brass gear-shaped buttons',
+        mischiefTrait: 'Chews pencil erasers down to the metal ferrule',
+        description: 'An accidental escapee from the experimental stitching lab with an over-engineered jaw.',
+        warningNote: 'Ensure all pens and markers are stored in locked metal tins.',
+        svgConfig: {
+          bodyColor: '#475569',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#e2e8f0',
+          eyeColorRight: '#cbd5e1',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bat',
+          stitchColor: '#1e293b',
+          hasGoldButton: true,
+          accessory: 'bandage'
+        }
+      },
+      {
+        id: 'fuggler-indecisive-monster',
+        name: 'Indecisive Monster',
+        species: 'Anceps Bicephalus',
+        series: 'Series 1',
+        rarity: 'Rare',
+        teethType: 'Snaggletooth',
+        teethCount: 25,
+        buttonEyeDesc: 'Asymmetrical lavender buttons with cocked pupils',
+        mischiefTrait: 'Leaves pantry doors wide open while contemplating existence',
+        description: 'Can never decide whether it wants to bite your shoes or your shoelaces, so it settles for drooling on both.',
+        warningNote: 'Do not ask it to make breakfast choices.',
+        svgConfig: {
+          bodyColor: '#8b5cf6',
+          feltPattern: 'spots',
+          eyeColorLeft: '#c084fc',
+          eyeColorRight: '#e9d5ff',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'uneven-teeth',
+          earsStyle: 'bunny',
+          stitchColor: '#5b21b6',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-mr-buttons',
+        name: 'Mr. Buttons (Underwear Bandit)',
+        species: 'Latronis Caliga',
+        series: 'Series 1',
+        rarity: 'Common',
+        teethType: 'Human Dentures',
+        teethCount: 30,
+        buttonEyeDesc: 'Crisp four-hole retro white pearl buttons',
+        mischiefTrait: 'Routinely loots clean laundry hampers for underpants',
+        description: 'Sporting a stylish pair of mini boxer shorts and a manic denture grimace. Considers clean laundry an insult to monster culture.',
+        warningNote: 'Lock your dresser drawers before turning off the lights.',
+        svgConfig: {
+          bodyColor: '#0284c7',
+          feltPattern: 'spots',
+          eyeColorLeft: '#ffffff',
+          eyeColorRight: '#ffffff',
+          eyeStyle: 'buttons',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bear',
+          stitchColor: '#0369a1',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-wide-eyed-weirdo',
+        name: 'Wide-Eyed Weirdo',
+        species: 'Ocularis Immanis',
+        series: 'Series 1',
+        rarity: 'Common',
+        teethType: 'Wide Gap',
+        teethCount: 22,
+        buttonEyeDesc: 'Huge glossy canary yellow button eyes with black X thread',
+        mischiefTrait: 'Watches you type your phone passcode with unnerving intensity',
+        description: 'Electric lemon yellow fur and eyes so huge it has not blinked since 2018. Smirks with supreme overconfidence.',
+        warningNote: 'Turn it around to face the wall when entering banking pins.',
+        svgConfig: {
+          bodyColor: '#eab308',
+          feltPattern: 'plain',
+          eyeColorLeft: '#000000',
+          eyeColorRight: '#000000',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bunny',
+          stitchColor: '#854d0e',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-munch-munch',
+        name: 'Munch Munch',
+        species: 'Vorator Glutto',
+        series: 'Series 2',
+        rarity: 'Rare',
+        teethType: 'Double Row',
+        teethCount: 36,
+        buttonEyeDesc: 'Mismatched hot fuchsia and chartreuse resin studs',
+        mischiefTrait: 'Leaves tiny semicircular bite marks on soaps and candles',
+        description: 'Equipped with a terrifyingly dense dual ring of molars. Will sample anything that appears vaguely chewable.',
+        warningNote: 'Keep away from artisanal bath soaps and beeswax candles.',
+        svgConfig: {
+          bodyColor: '#ec4899',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#84cc16',
+          eyeColorRight: '#f43f5e',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bear',
+          stitchColor: '#9d174d',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-old-tooth',
+        name: 'Old Tooth (Elder Gnasher)',
+        species: 'Veteris Odontos',
+        series: 'Series 2',
+        rarity: 'Rare',
+        teethType: 'Snaggletooth',
+        teethCount: 18,
+        buttonEyeDesc: 'Faded antique horn toggles weathered with age',
+        mischiefTrait: 'Grumble-chews the corners of coffee table books',
+        description: 'A venerable senior monster made from rough burlap felt. Has fewer teeth left, but the remaining ones are lethal.',
+        warningNote: 'Refuses modern dental floss on philosophical grounds.',
+        svgConfig: {
+          bodyColor: '#a1a1aa',
+          feltPattern: 'burlap',
+          eyeColorLeft: '#52525b',
+          eyeColorRight: '#71717a',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bat',
+          stitchColor: '#3f3f46',
+          hasGoldButton: false,
+          accessory: 'bandage'
+        }
+      },
+      {
+        id: 'fuggler-skelly-glow',
+        name: 'Skelly (Bone Fuggler)',
+        species: 'Calvaria Nocturna',
+        series: 'Glow In The Dark',
+        rarity: 'Chase',
+        teethType: 'Human Dentures',
+        teethCount: 32,
+        buttonEyeDesc: 'Phosphorescent ivory skull-shaped button eyes',
+        mischiefTrait: 'Glows menacingly from the top of the wardrobe at 2:00 AM',
+        description: 'Bone-white felt skeleton ribcage printed across jet black fleece. Absorbs bedroom light and emits a ghostly lime radiance.',
+        warningNote: 'Highly visible in the dark; you cannot hide from its grin.',
+        svgConfig: {
+          bodyColor: '#09090b',
+          feltPattern: 'plain',
+          eyeColorLeft: '#39ff14',
+          eyeColorRight: '#39ff14',
+          eyeStyle: 'buttons',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'horns',
+          stitchColor: '#39ff14',
+          hasGoldButton: true,
+          accessory: 'zipper'
+        }
+      },
+      {
+        id: 'fuggler-sasquoosh',
+        name: 'Sasquoosh',
+        species: 'Cryptidus Shaggus',
+        series: 'Series 3',
+        rarity: 'Common',
+        teethType: 'Double Row',
+        teethCount: 30,
+        buttonEyeDesc: 'Tiny sunken pitch-black beads peeking from thick fluff',
+        mischiefTrait: 'Leaves giant dusty footprints leading toward the snack cupboard',
+        description: 'The legendary fuzzy Bigfoot of the Fuggler clan. Heavy underbite with protruding lower incisors.',
+        warningNote: 'Sheds imaginary monster fuzz on dark sweaters.',
+        svgConfig: {
+          bodyColor: '#573312',
+          feltPattern: 'burlap',
+          eyeColorLeft: '#1c1917',
+          eyeColorRight: '#1c1917',
+          eyeStyle: 'buttons',
+          mouthStyle: 'uneven-teeth',
+          earsStyle: 'bear',
+          stitchColor: '#2e1906',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-grin-grin',
+        name: 'Grin Grin',
+        species: 'Risus Perpetuus',
+        series: 'Series 3',
+        rarity: 'Common',
+        teethType: 'Human Dentures',
+        teethCount: 32,
+        buttonEyeDesc: 'Turquoise mirrored buttons that reflect your exasperation',
+        mischiefTrait: 'Maintains an unblinking dental grin through every argument',
+        description: 'Possesses a cheerful turquoise demeanor coupled with a chilling smile of 32 flawless human dental replacements.',
+        warningNote: 'Do not engage in staring contests; it does not possess eyelids.',
+        svgConfig: {
+          bodyColor: '#06b6d4',
+          feltPattern: 'spots',
+          eyeColorLeft: '#67e8f9',
+          eyeColorRight: '#a5f3fc',
+          eyeStyle: 'buttons',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bunny',
+          stitchColor: '#0891b2',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-squidge',
+        name: 'Squidge',
+        species: 'Mollusca Dentata',
+        series: 'Lab Misfits',
+        rarity: 'Rare',
+        teethType: 'Snaggletooth',
+        teethCount: 24,
+        buttonEyeDesc: 'Googly mismatched violet buttons that rattle slightly',
+        mischiefTrait: 'Slides under shut doors to nap on freshly ironed shirts',
+        description: 'A boneless blob of lilac felt with stubby appendage flaps and unevenly spaced baby dentures.',
+        warningNote: 'Can squeeze through suspiciously small gaps in furniture.',
+        svgConfig: {
+          bodyColor: '#7c3aed',
+          feltPattern: 'plain',
+          eyeColorLeft: '#c4b5fd',
+          eyeColorRight: '#ede9fe',
+          eyeStyle: 'googly',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'none',
+          stitchColor: '#5b21b6',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-awkward-bear',
+        name: 'Awkward Bear',
+        species: 'Pudoris Ursus',
+        series: 'Series 1',
+        rarity: 'Common',
+        teethType: 'Wide Gap',
+        teethCount: 26,
+        buttonEyeDesc: 'Mismatched distressed buttons angled in perpetual embarrassment',
+        mischiefTrait: 'Stands sideways behind doors making you jump in surprise',
+        description: 'Feels deeply self-conscious about having teeth that belong in an orthodontics textbook, yet flaunts them anyway.',
+        warningNote: 'Do not point and laugh; it will hide in your pillowcase.',
+        svgConfig: {
+          bodyColor: '#f472b6',
+          feltPattern: 'plain',
+          eyeColorLeft: '#9d174d',
+          eyeColorRight: '#831843',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bear',
+          stitchColor: '#db2777',
+          hasGoldButton: false,
+          accessory: 'bandage'
+        }
+      },
+      {
+        id: 'fuggler-lil-demon',
+        name: 'Lil Demon',
+        species: 'Diabolus Pusillus',
+        series: 'Series 2',
+        rarity: 'Rare',
+        teethType: 'Vampire Fangs',
+        teethCount: 28,
+        buttonEyeDesc: 'Fiery obsidian & brimstone red cat-eye buttons',
+        mischiefTrait: 'Sets the microwave timer to beep 3 seconds before you finish food',
+        description: 'Bright inferno red with curled plush horns and needle-sharp canine teeth crafted from dental acrylic.',
+        warningNote: 'Keep away from candles, spicy salsa, and electrical sockets.',
+        svgConfig: {
+          bodyColor: '#dc2626',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#fbbf24',
+          eyeColorRight: '#b45309',
+          eyeStyle: 'buttons',
+          mouthStyle: 'fangs',
+          earsStyle: 'horns',
+          stitchColor: '#991b1b',
+          hasGoldButton: false,
+          accessory: 'zipper'
+        }
+      },
+      {
+        id: 'fuggler-lord-von-fugg',
+        name: 'Lord Von Fugg',
+        species: 'Aristocratis Odonticus',
+        series: 'Series 3',
+        rarity: 'Ultra Rare',
+        teethType: 'Human Dentures',
+        teethCount: 32,
+        buttonEyeDesc: 'Golden monocle over right eye, dark tortoiseshell on left',
+        mischiefTrait: 'Glares with aristocratic disdain when you use store-brand butter',
+        description: 'High-society plush monster clad in royal wine-red felt. Demands to be addressed by full title.',
+        warningNote: 'Will refuse to sit on synthetic polyester sofas.',
+        svgConfig: {
+          bodyColor: '#881337',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#1c1917',
+          eyeColorRight: '#fbbf24',
+          eyeStyle: 'buttons',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bear',
+          stitchColor: '#4c0519',
+          hasGoldButton: true,
+          accessory: 'monocle'
+        }
+      },
+      {
+        id: 'fuggler-stinky-pete',
+        name: 'Stinky Pete',
+        species: 'Flatus Horrendus',
+        series: 'Fart Faces',
+        rarity: 'Common',
+        teethType: 'Wide Gap',
+        teethCount: 20,
+        buttonEyeDesc: 'Watery squinched green buttons squeezed nearly shut',
+        mischiefTrait: 'Leaves foul phantom odors lingering in closed elevators',
+        description: 'Official member of the infamous Fart Face series. Puffed-up cheeks and green-tinted gums tell the whole story.',
+        warningNote: 'Ventilate room immediately upon opening packaging.',
+        svgConfig: {
+          bodyColor: '#84cc16',
+          feltPattern: 'spots',
+          eyeColorLeft: '#4d7c0f',
+          eyeColorRight: '#4d7c0f',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'alien',
+          stitchColor: '#365314',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-chomper-shark',
+        name: 'Chomper Shark',
+        species: 'Selachimorpha Dentata',
+        series: 'Lab Misfits',
+        rarity: 'Rare',
+        teethType: 'Double Row',
+        teethCount: 38,
+        buttonEyeDesc: 'Cold dead glass doll eyes with black pupil beads',
+        mischiefTrait: 'Swims through laundry piles waiting for bare ankles',
+        description: 'A terrifying marine hybrid with a felt dorsal fin and an endless conveyor belt of realistic molar implants.',
+        warningNote: 'Keep out of bathtub during relaxing soaks.',
+        svgConfig: {
+          bodyColor: '#334155',
+          feltPattern: 'plain',
+          eyeColorLeft: '#0f172a',
+          eyeColorRight: '#0f172a',
+          eyeStyle: 'creepy-glass',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'horns',
+          stitchColor: '#0f172a',
+          hasGoldButton: false,
+          accessory: 'bandage'
+        }
+      },
+      {
+        id: 'fuggler-rabid-piggy',
+        name: 'Rabid Piggy',
+        species: 'Porcus Dentatus',
+        series: 'Series 3',
+        rarity: 'Common',
+        teethType: 'Snaggletooth',
+        teethCount: 26,
+        buttonEyeDesc: 'Bright magenta buttons stitched with black cross-thread',
+        mischiefTrait: 'Rummages noisily in potato chip bags during dramatic movie scenes',
+        description: 'Bubblegum pink swine monster with oversized felt snout and crooked human teeth jutting in all directions.',
+        warningNote: 'Do not trust around leftovers or unguarded bacon bits.',
+        svgConfig: {
+          bodyColor: '#f43f5e',
+          feltPattern: 'plain',
+          eyeColorLeft: '#881337',
+          eyeColorRight: '#881337',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bear',
+          stitchColor: '#be123c',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-sickly-rabbit',
+        name: 'Toxic Rabid Rabbit',
+        species: 'Leporid Toxicus',
+        series: 'Series 3',
+        rarity: 'Rare',
+        teethType: 'Human Dentures',
+        teethCount: 28,
+        buttonEyeDesc: 'Radioactive yellow & bloodshot purple buttons',
+        mischiefTrait: 'Licks the condensation off cold drink glasses',
+        description: 'A mutant neon chartreuse variant of the iconic Rabid Rabbit. The fur looks radioactive and the teeth look ravenous.',
+        warningNote: 'May cause sudden loss of appetite if stared at too long.',
+        svgConfig: {
+          bodyColor: '#a3e635',
+          feltPattern: 'spots',
+          eyeColorLeft: '#e11d48',
+          eyeColorRight: '#7c3aed',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bunny',
+          stitchColor: '#4d7c0f',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-butterscotch-chomp',
+        name: 'Butterscotch Chomp',
+        species: 'Dulcis Mordax',
+        series: 'Snuggler Edition',
+        rarity: 'Common',
+        teethType: 'Wide Gap',
+        teethCount: 24,
+        buttonEyeDesc: 'Caramel swirl marble resin buttons',
+        mischiefTrait: 'Chews the corner of throw pillows while pretending to sleep',
+        description: 'Soft butterscotch-colored fleece that feels so innocent until its jaw unhinges to expose a gaping dental cavern.',
+        warningNote: 'Highly deceptive cuddle partner.',
+        svgConfig: {
+          bodyColor: '#d97706',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#78350f',
+          eyeColorRight: '#92400e',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bear',
+          stitchColor: '#b45309',
+          hasGoldButton: false,
+          accessory: 'bandage'
+        }
+      },
+      {
+        id: 'fuggler-fuzzy-blue-mischief',
+        name: 'Fuzzy Blue Snuggler',
+        species: 'Caeruleus Mollis',
+        series: 'Snuggler Edition',
+        rarity: 'Common',
+        teethType: 'Human Dentures',
+        teethCount: 30,
+        buttonEyeDesc: 'Half-closed sleepy lavender buttons with drooping eyelids',
+        mischiefTrait: 'Steals the duvet and leaves you shivering at 4:00 AM',
+        description: 'Dressed in ultra-soft sky-blue plush fleece. Looks like a cute bedtime teddy until its lips part.',
+        warningNote: 'Do not be fooled by its sleepy demeanor; it strikes when lights go out.',
+        svgConfig: {
+          bodyColor: '#38bdf8',
+          feltPattern: 'plain',
+          eyeColorLeft: '#6366f1',
+          eyeColorRight: '#818cf8',
+          eyeStyle: 'buttons',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bunny',
+          stitchColor: '#0284c7',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-grim-grinner',
+        name: 'Grim Grinner',
+        species: 'Gothicus Dentatus',
+        series: 'Series 3',
+        rarity: 'Rare',
+        teethType: 'Human Dentures',
+        teethCount: 32,
+        buttonEyeDesc: 'Dark obsidian matte buttons with purple spiderweb stitching',
+        mischiefTrait: 'Silently rearranges your bookshelf in reverse alphabetical order',
+        description: 'Pure goth felt aesthetics. Midnight charcoal coat that makes its uncanny porcelain teeth stand out with terrifying clarity.',
+        warningNote: 'Listens exclusively to depressing monster ballads.',
+        svgConfig: {
+          bodyColor: '#18181b',
+          feltPattern: 'plain',
+          eyeColorLeft: '#9333ea',
+          eyeColorRight: '#9333ea',
+          eyeStyle: 'buttons',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bat',
+          stitchColor: '#581c87',
+          hasGoldButton: false,
+          accessory: 'zipper'
+        }
+      },
+      {
+        id: 'fuggler-cyclops-creep',
+        name: 'Cyclops Creep',
+        species: 'Monoculus Vorax',
+        series: 'Lab Misfits',
+        rarity: 'Chase',
+        teethType: 'Snaggletooth',
+        teethCount: 26,
+        buttonEyeDesc: 'Single massive iridescent glass eye centered on forehead',
+        mischiefTrait: 'Stares directly at your nose during conversation',
+        description: 'Born from a defective eye-sewing machine in the factory. One enormous eye and an uncontrollable overbite.',
+        warningNote: 'Has zero depth perception; runs into wall edges often.',
+        svgConfig: {
+          bodyColor: '#059669',
+          feltPattern: 'spots',
+          eyeColorLeft: '#34d399',
+          eyeColorRight: '#34d399',
+          eyeStyle: 'cyclops',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'horns',
+          stitchColor: '#065f46',
+          hasGoldButton: true,
+          accessory: 'bandage'
+        }
+      },
+      {
+        id: 'fuggler-snuggle-gnawer',
+        name: 'Snuggle Gnawer',
+        species: 'Cuddlus Mordicans',
+        series: 'Snuggler Edition',
+        rarity: 'Common',
+        teethType: 'Vampire Fangs',
+        teethCount: 28,
+        buttonEyeDesc: 'Soft rose gold plastic buttons with frayed pink threads',
+        mischiefTrait: 'Nips at your toes while you are reading peacefully in bed',
+        description: 'Peach pastel teddy fabric with razor-sharp dental fangs. The ultimate paradox of cute and terrifying.',
+        warningNote: 'Always wear thick wool socks in bed when this monster is nearby.',
+        svgConfig: {
+          bodyColor: '#fb7185',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#fda4af',
+          eyeColorRight: '#f43f5e',
+          eyeStyle: 'buttons',
+          mouthStyle: 'fangs',
+          earsStyle: 'bear',
+          stitchColor: '#e11d48',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-zebra-weirdo',
+        name: 'Zebra Stitched Weirdo',
+        species: 'Equus Dentatus',
+        series: 'Series 3',
+        rarity: 'Ultra Rare',
+        teethType: 'Double Row',
+        teethCount: 34,
+        buttonEyeDesc: 'Contrasting black and white mismatched toggles',
+        mischiefTrait: 'Camouflages itself against barcode scanners and zebra crossings',
+        description: 'Experimental safari edition with chaotic monochrome stripes and double sets of incisors.',
+        warningNote: 'Confuses optical scanners and pets alike.',
+        svgConfig: {
+          bodyColor: '#3f3f46',
+          feltPattern: 'burlap',
+          eyeColorLeft: '#ffffff',
+          eyeColorRight: '#000000',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'bunny',
+          stitchColor: '#18181b',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-spongey-misfit',
+        name: 'Spongey Misfit',
+        species: 'Spongia Dentata',
+        series: 'Lab Misfits',
+        rarity: 'Rare',
+        teethType: 'Wide Gap',
+        teethCount: 22,
+        buttonEyeDesc: 'Translucent amber buttons with air bubble inclusions',
+        mischiefTrait: 'Soaks up spilled soda and refuses to be wrung out',
+        description: 'Porous yellow fleece with uneven stitched patches and gap teeth wide enough to hold a pencil.',
+        warningNote: 'Do not use as an actual kitchen sponge.',
+        svgConfig: {
+          bodyColor: '#f59e0b',
+          feltPattern: 'spots',
+          eyeColorLeft: '#fbbf24',
+          eyeColorRight: '#d97706',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'none',
+          stitchColor: '#b45309',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-night-howler',
+        name: 'Night Howler',
+        species: 'Lupus Feltus',
+        series: 'Series 2',
+        rarity: 'Rare',
+        teethType: 'Vampire Fangs',
+        teethCount: 30,
+        buttonEyeDesc: 'Luminous yellow crescent moon buttons',
+        mischiefTrait: 'Howls inaudibly when sirens pass in the street',
+        description: 'Midnight blue wolf monster with jagged pointed ears and oversized canine teeth that pierce its lower felt lip.',
+        warningNote: 'Store away from silver tableware and moonlight.',
+        svgConfig: {
+          bodyColor: '#1e3a8a',
+          feltPattern: 'plain',
+          eyeColorLeft: '#facc15',
+          eyeColorRight: '#facc15',
+          eyeStyle: 'buttons',
+          mouthStyle: 'fangs',
+          earsStyle: 'bat',
+          stitchColor: '#1e40af',
+          hasGoldButton: false,
+          accessory: 'bandage'
+        }
+      },
+      {
+        id: 'fuggler-pirate-plunder',
+        name: 'Plunder Pete',
+        species: 'Pirata Odontos',
+        series: 'Series 3',
+        rarity: 'Ultra Rare',
+        teethType: 'Golden Grill',
+        teethCount: 32,
+        buttonEyeDesc: 'Black felt eyepatch over left eye; brass button on right',
+        mischiefTrait: 'Buries your car keys in the backyard and draws a bad map',
+        description: 'Swashbuckling terror of the toy chest with gold teeth and a stitched eyepatch. Will rob your cookie jar blind.',
+        warningNote: 'Check all laundry pockets for smuggled dubloons and stolen buttons.',
+        svgConfig: {
+          bodyColor: '#831843',
+          feltPattern: 'burlap',
+          eyeColorLeft: '#000000',
+          eyeColorRight: '#fbbf24',
+          eyeStyle: 'mismatched',
+          mouthStyle: 'golden-teeth',
+          earsStyle: 'horns',
+          stitchColor: '#500724',
+          hasGoldButton: true,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-gold-tooth-gremlin',
+        name: 'Gold-Tooth Gremlin',
+        species: 'Aureum Daemon',
+        series: 'Gold Chase',
+        rarity: 'Golden BUTT-on',
+        teethType: 'Golden Grill',
+        teethCount: 30,
+        buttonEyeDesc: 'Gold foil stamped antique coat buttons',
+        mischiefTrait: 'Swaps everyday coins for expired arcade tokens',
+        description: 'Rare chase specimen featuring an authentic 24k gold BUTT-on and dazzling metallic dental teeth.',
+        warningNote: 'Valuable collectible; keep safe from thieving magpies and siblings.',
+        svgConfig: {
+          bodyColor: '#27272a',
+          feltPattern: 'quilted',
+          eyeColorLeft: '#fbbf24',
+          eyeColorRight: '#f59e0b',
+          eyeStyle: 'buttons',
+          mouthStyle: 'golden-teeth',
+          earsStyle: 'bunny',
+          stitchColor: '#ca8a04',
+          hasGoldButton: true,
+          accessory: 'monocle'
+        }
+      },
+      {
+        id: 'fuggler-knitwear-nightmare',
+        name: 'Knitwear Nightmare',
+        species: 'Lana Horrida',
+        series: 'Series 3',
+        rarity: 'Common',
+        teethType: 'Snaggletooth',
+        teethCount: 24,
+        buttonEyeDesc: 'Wooden toggle buttons rescued from an ugly sweater',
+        mischiefTrait: 'Pulls loose threads on your favorite cardigan until it unravels',
+        description: 'Crafted from coarse itchy acrylic yarn pattern with teeth that look suspiciously like guitar picks.',
+        warningNote: 'Do not wash on hot cycles; will shrink into pure anger.',
+        svgConfig: {
+          bodyColor: '#15803d',
+          feltPattern: 'burlap',
+          eyeColorLeft: '#bbf7d0',
+          eyeColorRight: '#86efac',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bear',
+          stitchColor: '#166534',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      },
+      {
+        id: 'fuggler-toxic-glow-chomper',
+        name: 'Toxic Glow Chomper',
+        species: 'Phosphorus Mordax',
+        series: 'Glow In The Dark',
+        rarity: 'Chase',
+        teethType: 'Double Row',
+        teethCount: 36,
+        buttonEyeDesc: 'Glowing radioactive emerald discs',
+        mischiefTrait: 'Charges up under desk lamps to terrify you when power cuts out',
+        description: 'Its entire mouth glows with an unholy green brilliance in complete darkness. Perfect for midnight nightmares.',
+        warningNote: 'May cause sudden adrenaline spikes if checked in the dark.',
+        svgConfig: {
+          bodyColor: '#14532d',
+          feltPattern: 'spots',
+          eyeColorLeft: '#39ff14',
+          eyeColorRight: '#39ff14',
+          eyeStyle: 'buttons',
+          mouthStyle: 'wide-dentures',
+          earsStyle: 'alien',
+          stitchColor: '#39ff14',
+          hasGoldButton: true,
+          accessory: 'zipper'
+        }
+      },
+      {
+        id: 'fuggler-fart-face-gus',
+        name: 'Gassy Gus',
+        species: 'Ventus Malodorus',
+        series: 'Fart Faces',
+        rarity: 'Common',
+        teethType: 'Wide Gap',
+        teethCount: 22,
+        buttonEyeDesc: 'Bulging brown buttons with cross-eyed stitches',
+        mischiefTrait: 'Sits near the radiator to amplify noxious imaginary odors',
+        description: 'Famous member of the Fart Faces line with compressed cheeks and a mischievous gap-toothed grimace.',
+        warningNote: 'Keep away from heating vents and enclosed spaces.',
+        svgConfig: {
+          bodyColor: '#65a30d',
+          feltPattern: 'plain',
+          eyeColorLeft: '#365314',
+          eyeColorRight: '#365314',
+          eyeStyle: 'buttons',
+          mouthStyle: 'snaggle-gap',
+          earsStyle: 'bear',
+          stitchColor: '#3f6212',
+          hasGoldButton: false,
+          accessory: 'drool'
+        }
+      },
+      {
+        id: 'fuggler-count-undies',
+        name: 'Count Undies',
+        species: 'Vampyrus Subligar',
+        series: 'Series 2',
+        rarity: 'Rare',
+        teethType: 'Vampire Fangs',
+        teethCount: 28,
+        buttonEyeDesc: 'Bloodshot magenta glass with white eyelet trim',
+        mischiefTrait: 'Wears miniature polka-dot boxer shorts over its bat wings',
+        description: 'A vampire bat who believes high fashion consists exclusively of novelty undergarments and razor-sharp fangs.',
+        warningNote: 'Keep clotheslines guarded when outdoors.',
+        svgConfig: {
+          bodyColor: '#4c1d95',
+          feltPattern: 'spots',
+          eyeColorLeft: '#f43f5e',
+          eyeColorRight: '#f43f5e',
+          eyeStyle: 'creepy-glass',
+          mouthStyle: 'fangs',
+          earsStyle: 'bat',
+          stitchColor: '#581c87',
+          hasGoldButton: false,
+          accessory: 'patch'
+        }
+      }
+    ];
+
+    // Main Interactive SVG Avatar
+    function MonsterAvatar({ monster, size = 'md', interactive = true, onChomp, className = '' }) {
+      const [isBiting, setIsBiting] = useState(false);
+      const [showRear, setShowRear] = useState(false);
+
+      const handleClick = (e) => {
+        if (!interactive) return;
+        e.stopPropagation();
+        setIsBiting(true);
+        if (onChomp) onChomp();
+        setTimeout(() => setIsBiting(false), 240);
+      };
+
+      const dimensions = {
+        sm: 'w-16 h-16',
+        md: 'w-32 h-32',
+        lg: 'w-48 h-48 sm:w-56 sm:h-56',
+        xl: 'w-64 h-64 sm:w-72 sm:h-72',
+      }[size] || 'w-32 h-32';
+
+      const isGold = monster.svgConfig?.hasGoldButton || monster.rarity === 'Golden BUTT-on';
+
+      if (showRear) {
+        return (
+          <div
+            onClick={() => setShowRear(false)}
+            className={`relative ${dimensions} rounded-2xl bg-[#1e1b2e] border-2 border-dashed border-purple-500/50 flex flex-col items-center justify-center p-3 cursor-pointer group select-none ${className}`}
+            title="Official Fuggler Rear Signature BUTT-on (Click to flip front)"
+          >
+            <div className="text-center mb-1">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-[#ff007f] font-bold">Official Rear Mark</p>
+              <p className="text-[9px] text-zinc-400">Signature BUTT-on</p>
+            </div>
+            <div
+              className={`relative w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${
+                isGold
+                  ? 'bg-gradient-to-tr from-amber-500 via-yellow-300 to-amber-600 border-2 border-amber-200 shadow-amber-500/40 ring-4 ring-amber-400/20'
+                  : 'bg-[#27272a] border-2 border-[#52525b] shadow-black/60'
+              }`}
+            >
+              <div className="grid grid-cols-2 gap-2">
+                <span className="w-2 h-2 rounded-full bg-black/80" />
+                <span className="w-2 h-2 rounded-full bg-black/80" />
+                <span className="w-2 h-2 rounded-full bg-black/80" />
+                <span className="w-2 h-2 rounded-full bg-black/80" />
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className={`w-4 h-0.5 rotate-45 ${isGold ? 'bg-amber-900' : 'bg-pink-400'}`} />
+                <span className={`w-4 h-0.5 -rotate-45 ${isGold ? 'bg-amber-900' : 'bg-pink-400'}`} />
+              </div>
+            </div>
+            <p className="mt-2 text-[10px] font-mono text-zinc-400 group-hover:text-[#39ff14] transition-colors">↺ Tap to flip front</p>
+          </div>
+        );
+      }
+
+      const { bodyColor, eyeColorLeft, eyeColorRight, eyeStyle, earsStyle, mouthStyle, stitchColor, accessory } = monster.svgConfig || {
+        bodyColor: '#a855f7',
+        eyeColorLeft: '#ef4444',
+        eyeColorRight: '#18181b',
+        eyeStyle: 'buttons',
+        earsStyle: 'bunny',
+        mouthStyle: 'wide-dentures',
+        stitchColor: '#4c1d95',
+        accessory: 'none'
+      };
+
+      return (
+        <div
+          onClick={handleClick}
+          className={`relative ${dimensions} cursor-pointer group select-none transition-transform duration-150 active:scale-95 ${className}`}
+          title={`${monster.name} - Click to bite!`}
+        >
+          <svg viewBox="0 0 200 200" className={`w-full h-full filter drop-shadow-[0_10px_16px_rgba(0,0,0,0.6)] transition-transform duration-200 group-hover:scale-105 ${isBiting ? 'scale-95' : ''}`}>
+            {/* Ears / Horns */}
+            {earsStyle === 'bunny' && (
+              <g>
+                <path d="M 60 55 C 40 5, 20 20, 50 65" fill={bodyColor} stroke={stitchColor} strokeWidth="3" strokeDasharray="4,3" />
+                <path d="M 140 55 C 160 5, 180 20, 150 65" fill={bodyColor} stroke={stitchColor} strokeWidth="3" strokeDasharray="4,3" />
+                <path d="M 52 50 C 42 22, 32 30, 48 58" fill="#fda4af" opacity="0.6" />
+                <path d="M 148 50 C 158 22, 168 30, 152 58" fill="#fda4af" opacity="0.6" />
+              </g>
+            )}
+            {earsStyle === 'horns' && (
+              <g>
+                <path d="M 55 58 C 30 25, 45 10, 68 45 Z" fill="#fbbf24" stroke="#b45309" strokeWidth="2.5" />
+                <path d="M 145 58 C 170 25, 155 10, 132 45 Z" fill="#fbbf24" stroke="#b45309" strokeWidth="2.5" />
+              </g>
+            )}
+            {earsStyle === 'bat' && (
+              <g>
+                <polygon points="45,55 20,20 65,42" fill={bodyColor} stroke={stitchColor} strokeWidth="3" />
+                <polygon points="155,55 180,20 135,42" fill={bodyColor} stroke={stitchColor} strokeWidth="3" />
+              </g>
+            )}
+            {earsStyle === 'bear' && (
+              <g>
+                <circle cx="50" cy="48" r="20" fill={bodyColor} stroke={stitchColor} strokeWidth="3" strokeDasharray="4,3" />
+                <circle cx="50" cy="48" r="10" fill="#fca5a5" opacity="0.4" />
+                <circle cx="150" cy="48" r="20" fill={bodyColor} stroke={stitchColor} strokeWidth="3" strokeDasharray="4,3" />
+                <circle cx="150" cy="48" r="10" fill="#fca5a5" opacity="0.4" />
+              </g>
+            )}
+            {earsStyle === 'alien' && (
+              <g>
+                <line x1="100" y1="45" x2="100" y2="18" stroke={stitchColor} strokeWidth="4" />
+                <circle cx="100" cy="15" r="9" fill="#39ff14" stroke="#047857" strokeWidth="2" />
+              </g>
+            )}
+
+            {/* Main Plush Body */}
+            <path
+              d="M 45 70 C 45 42, 155 42, 155 70 C 175 90, 175 140, 155 165 C 135 182, 65 182, 45 165 C 25 140, 25 90, 45 70 Z"
+              fill={bodyColor}
+              stroke={stitchColor}
+              strokeWidth="3.5"
+              strokeDasharray="5,4"
+            />
+
+            {/* Accessories */}
+            {accessory === 'patch' && (
+              <rect x="130" y="68" width="22" height="20" rx="3" fill="#4338ca" stroke="#6366f1" strokeWidth="2" strokeDasharray="3,2" transform="rotate(12 141 78)" />
+            )}
+            {accessory === 'bandage' && (
+              <rect x="50" y="65" width="26" height="12" rx="4" fill="#fde047" stroke="#ca8a04" strokeWidth="1.5" transform="rotate(-20 63 71)" />
+            )}
+            {accessory === 'monocle' && (
+              <g>
+                <circle cx="132" cy="85" r="17" fill="none" stroke="#fbbf24" strokeWidth="2.5" />
+                <line x1="145" y1="95" x2="155" y2="135" stroke="#fbbf24" strokeWidth="1.5" strokeDasharray="2,2" />
+              </g>
+            )}
+
+            {/* EYES */}
+            {eyeStyle === 'cyclops' ? (
+              <g>
+                <circle cx="100" cy="85" r="18" fill="#18181b" stroke="#71717a" strokeWidth="2" />
+                <circle cx="100" cy="85" r="14" fill={eyeColorLeft} />
+                <circle cx="97" cy="82" r="5" fill="#ffffff" />
+                <circle cx="102" cy="85" r="2" fill="#000000" />
+              </g>
+            ) : (
+              <g>
+                {/* Left Button Eye */}
+                <g transform="translate(68, 85)">
+                  <circle cx="0" cy="0" r="14" fill={eyeColorLeft} stroke="#09090b" strokeWidth="2" />
+                  <circle cx="0" cy="0" r="11" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="1" />
+                  <circle cx="-4" cy="-4" r="1.5" fill="#09090b" />
+                  <circle cx="4" cy="-4" r="1.5" fill="#09090b" />
+                  <circle cx="-4" cy="4" r="1.5" fill="#09090b" />
+                  <circle cx="4" cy="4" r="1.5" fill="#09090b" />
+                  <line x1="-4" y1="-4" x2="4" y2="4" stroke="#ffffff" strokeWidth="1.2" />
+                  <line x1="-4" y1="4" x2="4" y2="-4" stroke="#ffffff" strokeWidth="1.2" />
+                </g>
+
+                {/* Right Eye */}
+                <g transform="translate(132, 85)">
+                  {eyeStyle === 'googly' ? (
+                    <g>
+                      <circle cx="0" cy="0" r="16" fill="#f8fafc" stroke="#334155" strokeWidth="2" />
+                      <circle cx="3" cy="2" r="8" fill="#0f172a" />
+                      <circle cx="5" cy="0" r="2.5" fill="#ffffff" />
+                    </g>
+                  ) : (
+                    <g>
+                      <circle cx="0" cy="0" r="13" fill={eyeColorRight} stroke="#09090b" strokeWidth="2" />
+                      <circle cx="0" cy="0" r="10" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="1" />
+                      <circle cx="-3" cy="-3" r="1.4" fill="#09090b" />
+                      <circle cx="3" cy="-3" r="1.4" fill="#09090b" />
+                      <circle cx="-3" cy="3" r="1.4" fill="#09090b" />
+                      <circle cx="3" cy="3" r="1.4" fill="#09090b" />
+                      <line x1="-3" y1="-3" x2="3" y2="3" stroke="#f43f5e" strokeWidth="1.2" />
+                      <line x1="-3" y1="3" x2="3" y2="-3" stroke="#f43f5e" strokeWidth="1.2" />
+                    </g>
+                  )}
+                </g>
+              </g>
+            )}
+
+            {/* Nose stitches */}
+            <g transform="translate(100, 106)">
+              <line x1="-4" y1="-4" x2="4" y2="4" stroke={stitchColor} strokeWidth="2.5" />
+              <line x1="-4" y1="4" x2="4" y2="-4" stroke={stitchColor} strokeWidth="2.5" />
+            </g>
+
+            {/* HUMAN TEETH MOUTH */}
+            <g transform={`translate(0, ${isBiting ? -4 : 0})`}>
+              <path d="M 55 125 C 55 118, 145 118, 145 125 C 148 152, 52 152, 55 125 Z" fill="#450a0a" stroke="#1c1917" strokeWidth="3" />
+              <path d="M 58 123 C 75 120, 125 120, 142 123 C 140 128, 60 128, 58 123 Z" fill="#e11d48" />
+
+              {/* Upper Teeth */}
+              {mouthStyle === 'golden-teeth' ? (
+                <g fill="#fbbf24" stroke="#b45309" strokeWidth="1">
+                  <rect x="62" y="124" width="10" height="11" rx="2" />
+                  <rect x="74" y="124" width="12" height="13" rx="2" />
+                  <rect x="88" y="124" width="12" height="13" rx="2" />
+                  <rect x="102" y="124" width="12" height="13" rx="2" />
+                  <rect x="116" y="124" width="12" height="13" rx="2" />
+                  <rect x="130" y="124" width="10" height="11" rx="2" />
+                </g>
+              ) : mouthStyle === 'fangs' ? (
+                <g fill="#fbf8eb" stroke="#d6d3d1" strokeWidth="1">
+                  <rect x="62" y="124" width="11" height="9" rx="1.5" />
+                  <polygon points="75,124 86,124 81,142" fill="#ffffff" stroke="#e7e5e4" />
+                  <rect x="88" y="124" width="11" height="9" rx="1.5" />
+                  <rect x="101" y="124" width="11" height="9" rx="1.5" />
+                  <polygon points="114,124 125,124 120,142" fill="#ffffff" stroke="#e7e5e4" />
+                  <rect x="127" y="124" width="11" height="9" rx="1.5" />
+                </g>
+              ) : mouthStyle === 'snaggle-gap' ? (
+                <g fill="#fbf8eb" stroke="#a8a29e" strokeWidth="1">
+                  <rect x="60" y="124" width="11" height="10" rx="2" />
+                  <rect x="73" y="124" width="12" height="12" rx="2" />
+                  <rect x="115" y="124" width="12" height="12" rx="2" />
+                  <rect x="129" y="124" width="11" height="10" rx="2" />
+                </g>
+              ) : (
+                <g fill="#fbf8eb" stroke="#78716c" strokeWidth="0.8">
+                  <rect x="61" y="124" width="9" height="10" rx="1.5" />
+                  <rect x="72" y="124" width="11" height="12" rx="1.5" />
+                  <rect x="85" y="124" width="13" height="13" rx="1.5" />
+                  <rect x="100" y="124" width="13" height="13" rx="1.5" />
+                  <rect x="115" y="124" width="11" height="12" rx="1.5" />
+                  <rect x="128" y="124" width="9" height="10" rx="1.5" />
+                </g>
+              )}
+
+              {/* Lower Teeth */}
+              <g transform={`translate(0, ${isBiting ? -6 : 0})`}>
+                <path d="M 64 148 C 80 152, 120 152, 136 148 C 135 142, 65 142, 64 148 Z" fill="#e11d48" />
+                <g fill={mouthStyle === 'golden-teeth' ? '#fbbf24' : '#fbf8eb'} stroke={mouthStyle === 'golden-teeth' ? '#b45309' : '#78716c'} strokeWidth="0.8">
+                  <rect x="67" y="137" width="9" height="9" rx="1.5" />
+                  <rect x="78" y="136" width="10" height="11" rx="1.5" />
+                  <rect x="90" y="135" width="10" height="12" rx="1.5" />
+                  <rect x="102" y="135" width="10" height="12" rx="1.5" />
+                  <rect x="114" y="136" width="10" height="11" rx="1.5" />
+                  <rect x="126" y="137" width="8" height="9" rx="1.5" />
+                </g>
+              </g>
+
+              {accessory === 'drool' && (
+                <path d="M 125 142 C 125 152, 123 158, 124 162 C 126 164, 128 162, 127 156 Z" fill="#38bdf8" opacity="0.85" />
+              )}
+            </g>
+          </svg>
+
+          {isBiting && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-xl sm:text-2xl font-black text-[#ffe600] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] rotate-[-8deg]">
+                CHOMP! 🦷
+              </span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowRear(true);
+            }}
+            className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/75 hover:bg-black text-[9px] font-mono text-zinc-300 border border-purple-500/40"
+            title="Inspect signature BUTT-on"
+          >
+            {isGold ? '🟡 BUTT-on' : '🪡 BUTT-on'}
+          </button>
+        </div>
+      );
+    }
+
+    // App Component
+    function App() {
+      const [activeTab, setActiveTab] = useState('vault');
+      const [monsters, setMonsters] = useState(() => {
+        try {
+          const saved = localStorage.getItem('fuggler_all_monsters_v3');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const customOnly = parsed.filter(m => m.isCustom);
+              return [...INITIAL_MONSTERS, ...customOnly];
+            }
+          }
+        } catch(e) {}
+        return INITIAL_MONSTERS;
+      });
+
+      const [ownedIds, setOwnedIds] = useState(() => {
+        try {
+          const saved = localStorage.getItem('fuggler_vault_owned');
+          if (saved) return new Set(JSON.parse(saved));
+        } catch(e) {}
+        return new Set(['fuggler-rabid-rabbit', 'fuggler-gaptooth-mcgruff', 'fuggler-sir-horns-a-lot', 'fuggler-mr-buttons']);
+      });
+
+      const [selectedMonster, setSelectedMonster] = useState(INITIAL_MONSTERS[0]);
+      const [filters, setFilters] = useState({
+        search: '',
+        series: 'all',
+        status: 'all',
+      });
+
+      // Adoption Studio State
+      const [adopterName, setAdopterName] = useState('Stephen');
+      const [monsterAlias, setMonsterAlias] = useState(INITIAL_MONSTERS[0].name);
+      const [residence, setResidence] = useState('Under the Bed');
+      const [serialCode, setSerialCode] = useState(`FUG-${Math.floor(100000 + Math.random() * 900000)}-MISFIT`);
+      const [pledge1, setPledge1] = useState(true);
+      const [pledge2, setPledge2] = useState(true);
+      const [adoptedToday, setAdoptedToday] = useState(false);
+
+      // Monster Lab ("Build A Fuggler") State
+      const [labName, setLabName] = useState('Snaggle-Bite Bob');
+      const [labSpecies, setLabSpecies] = useState('Chompulus Weirdicus');
+      const [labMischief, setLabMischief] = useState('Unplugs phone chargers right before your alarm rings');
+      const [labColorIndex, setLabColorIndex] = useState(0);
+      const [labPattern, setLabPattern] = useState('quilted');
+      const [labMouth, setLabMouth] = useState('snaggle-gap');
+      const [labEyeStyle, setLabEyeStyle] = useState('mismatched');
+      const [labEyeLeft, setLabEyeLeft] = useState('#ef4444');
+      const [labEyeRight, setLabEyeRight] = useState('#fbbf24');
+      const [labEars, setLabEars] = useState('horns');
+      const [labAccessory, setLabAccessory] = useState('drool');
+      const [labHasGold, setLabHasGold] = useState(false);
+      const [labTeethCount, setLabTeethCount] = useState(26);
+
+      // Teeth Clinic State
+      const [clinicTeeth, setClinicTeeth] = useState(() => {
+        return Array.from({ length: 28 }).map((_, i) => ({ id: i, isCleaned: false, isGold: false }));
+      });
+
+      // Save to localStorage
+      useEffect(() => {
+        try {
+          localStorage.setItem('fuggler_vault_owned', JSON.stringify(Array.from(ownedIds)));
+        } catch(e) {}
+      }, [ownedIds]);
+
+      useEffect(() => {
+        try {
+          localStorage.setItem('fuggler_all_monsters_v3', JSON.stringify(monsters));
+        } catch(e) {}
+      }, [monsters]);
+
+      const toggleOwned = (id) => {
+        setOwnedIds(prev => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+      };
+
+      const handleRescueRandom = () => {
+        const unowned = monsters.filter(m => !ownedIds.has(m.id));
+        const candidate = unowned.length > 0
+          ? unowned[Math.floor(Math.random() * unowned.length)]
+          : monsters[Math.floor(Math.random() * monsters.length)];
+        setSelectedMonster(candidate);
+        setMonsterAlias(candidate.name);
+        setActiveTab('adoption');
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 }, colors: ['#ffe600', '#ff007f'] });
+      };
+
+      const handleRandomizeLab = () => {
+        setLabColorIndex(Math.floor(Math.random() * COLOR_PALETTES.length));
+        setLabPattern(['plain', 'quilted', 'spots', 'burlap'][Math.floor(Math.random() * 4)]);
+        setLabMouth(['wide-dentures', 'snaggle-gap', 'fangs', 'golden-teeth'][Math.floor(Math.random() * 4)]);
+        setLabEyeStyle(['buttons', 'googly', 'mismatched', 'cyclops'][Math.floor(Math.random() * 4)]);
+        setLabEyeLeft(EYE_COLORS[Math.floor(Math.random() * EYE_COLORS.length)]);
+        setLabEyeRight(EYE_COLORS[Math.floor(Math.random() * EYE_COLORS.length)]);
+        setLabEars(['bunny', 'horns', 'bear', 'alien', 'bat', 'none'][Math.floor(Math.random() * 6)]);
+        setLabAccessory(['patch', 'bandage', 'drool', 'monocle', 'none'][Math.floor(Math.random() * 5)]);
+        setLabHasGold(Math.random() > 0.6);
+        setLabTeethCount(Math.floor(18 + Math.random() * 18));
+
+        const names = ['Barnaby Bite', 'Sir Gaptooth', 'Grumpy Gill', 'Molar Max', 'Stitches McGee', 'Tooth Fairy Terror'];
+        const crimes = [
+          'Licks all the icing off cupcakes when no one is looking',
+          'Rearranges refrigerator magnets into cryptic threats',
+          'Chews TV remote volume buttons off',
+          'Hides car keys inside cereal boxes'
+        ];
+        setLabName(names[Math.floor(Math.random() * names.length)]);
+        setLabMischief(crimes[Math.floor(Math.random() * crimes.length)]);
+      };
+
+      // Filtered Monsters
+      const filteredMonsters = useMemo(() => {
+        return monsters.filter(m => {
+          if (filters.search) {
+            const q = filters.search.toLowerCase();
+            if (!m.name.toLowerCase().includes(q) && !m.species.toLowerCase().includes(q) && !m.mischiefTrait.toLowerCase().includes(q)) {
+              return false;
+            }
+          }
+          if (filters.series !== 'all' && m.series !== filters.series) return false;
+          const isOwned = ownedIds.has(m.id);
+          if (filters.status === 'owned' && !isOwned) return false;
+          if (filters.status === 'unowned' && isOwned) return false;
+          return true;
+        });
+      }, [monsters, filters, ownedIds]);
+
+      return (
+        <div className="min-h-screen h-full flex flex-col bg-[#121118] text-zinc-100 font-sans">
+          {/* Header */}
+          <header className="flex items-center justify-between px-4 sm:px-8 py-3.5 bg-[#121118]/95 backdrop-blur-md border-b border-[#4c3875]/40 shrink-0 sticky top-0 z-40">
+            <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('vault'); }} className="text-lg sm:text-xl font-black text-[#ffe600] hover:text-[#ff007f] transition-colors flex items-center gap-2">
+              <span>🦷 Fuggler Vault</span>
+            </a>
+
+            <nav className="hidden md:flex items-center gap-6 lg:gap-8 text-sm font-medium">
+              <button type="button" onClick={() => setActiveTab('vault')} className={`py-1 ${activeTab === 'vault' ? 'text-[#39ff14] font-semibold border-b-2 border-[#39ff14]' : 'text-zinc-400 hover:text-white'}`}>
+                Collection Vault ({monsters.length})
+              </button>
+              <button type="button" onClick={() => setActiveTab('lab')} className={`py-1 ${activeTab === 'lab' ? 'text-[#ffe600] font-semibold border-b-2 border-[#ffe600]' : 'text-zinc-400 hover:text-white'}`}>
+                Build-A-Fuggler (Lab)
+              </button>
+              <button type="button" onClick={() => setActiveTab('adoption')} className={`py-1 ${activeTab === 'adoption' ? 'text-[#ff007f] font-semibold border-b-2 border-[#ff007f]' : 'text-zinc-400 hover:text-white'}`}>
+                Adoption Studio
+              </button>
+              <button type="button" onClick={() => setActiveTab('guide')} className={`py-1 ${activeTab === 'guide' ? 'text-[#a855f7] font-semibold border-b-2 border-[#a855f7]' : 'text-zinc-400 hover:text-white'}`}>
+                Field Guide & Codex
+              </button>
+              <button type="button" onClick={() => setActiveTab('clinic')} className={`py-1 ${activeTab === 'clinic' ? 'text-cyan-400 font-semibold border-b-2 border-cyan-400' : 'text-zinc-400 hover:text-white'}`}>
+                Teeth Clinic
+              </button>
+            </nav>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab('lab')}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#ff007f] hover:bg-[#d6006b] text-white text-xs font-bold shadow-md transition-transform active:scale-95"
+              >
+                <span>✂️ Build Fuggler</span>
+              </button>
+              <button type="button" onClick={handleRescueRandom} className="flex items-center gap-1.5 px-3 sm:px-4 py-2 text-xs font-bold text-black bg-[#ffe600] hover:bg-[#ffd000] rounded-lg shadow-md active:scale-95">
+                <span>✨ Rescue Misfit</span>
+              </button>
+            </div>
+          </header>
+
+          {/* Main Body */}
+          <main className="flex-1 flex flex-col overflow-hidden pb-14 md:pb-0">
+            {/* VAULT VIEW */}
+            {activeTab === 'vault' && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-8 py-6 space-y-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#4c3875]/40 pb-5">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                      <span>Funny Ugly Monster Registry</span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-[#ff007f]/20 border border-[#ff007f] text-[#ff007f] font-mono">
+                        {monsters.length} Registered
+                      </span>
+                    </h1>
+                    <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-zinc-400 mt-2 font-mono">
+                      <span>In Your Vault: <strong className="text-[#39ff14]">{ownedIds.size}</strong></span>
+                      <span>·</span>
+                      <span>Teeth Counted: <strong className="text-[#ffe600]">{monsters.filter(m => ownedIds.has(m.id)).reduce((a,c) => a + c.teethCount, 0)}</strong></span>
+                      <span>·</span>
+                      <span>Golden BUTT-ons: <strong className="text-amber-400">{monsters.filter(m => ownedIds.has(m.id) && m.svgConfig?.hasGoldButton).length}</strong></span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('lab')}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-[#ff007f] hover:bg-[#d6006b] text-white text-xs font-bold rounded-lg shadow-lg active:scale-95"
+                  >
+                    <span>✂️ Stitch Custom Fuggler</span>
+                  </button>
+                </div>
+
+                {/* Filter bar */}
+                <div className="bg-[#1e1b2e] border border-[#4c3875]/50 rounded-xl p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <input
+                      type="text"
+                      placeholder="Search monsters by name, trait, or species..."
+                      value={filters.search}
+                      onChange={(e) => setFilters(f => ({ ...f, search: e.target.value }))}
+                      className="flex-1 bg-[#121118] border border-[#4c3875]/60 rounded-lg px-3 py-2 text-xs sm:text-sm text-zinc-100 focus:outline-none focus:border-[#ff007f]"
+                    />
+                    <div className="flex items-center p-1 bg-[#121118] rounded-lg border border-[#4c3875]/60 text-xs">
+                      <button onClick={() => setFilters(f => ({ ...f, status: 'all' }))} className={`px-2.5 py-1 rounded ${filters.status === 'all' ? 'bg-[#4c3875] text-white font-bold' : 'text-zinc-400'}`}>All</button>
+                      <button onClick={() => setFilters(f => ({ ...f, status: 'owned' }))} className={`px-2.5 py-1 rounded ${filters.status === 'owned' ? 'bg-[#39ff14] text-black font-bold' : 'text-zinc-400'}`}>In Vault</button>
+                      <button onClick={() => setFilters(f => ({ ...f, status: 'unowned' }))} className={`px-2.5 py-1 rounded ${filters.status === 'unowned' ? 'bg-[#ff007f] text-white font-bold' : 'text-zinc-400'}`}>Wild</button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+                    {['all', 'Series 1', 'Series 2', 'Series 3', 'Lab Misfits', 'Snuggler Edition', 'Fart Faces', 'Gold Chase', 'Glow In The Dark', 'Custom Creations'].map(s => (
+                      <button key={s} onClick={() => setFilters(f => ({ ...f, series: s }))} className={`px-3 py-1 rounded-md whitespace-nowrap ${filters.series === s ? 'bg-[#ff007f]/20 border border-[#ff007f] text-[#ff007f] font-bold' : 'bg-[#121118] text-zinc-400'}`}>
+                        {s === 'all' ? 'All Series' : s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredMonsters.map(monster => {
+                    const isOwned = ownedIds.has(monster.id);
+                    return (
+                      <div key={monster.id} className={`rounded-2xl p-4 flex flex-col justify-between transition-all ${isOwned ? 'felt-patch-owned' : 'felt-patch'}`}>
+                        <div className="flex items-center justify-between text-xs font-mono mb-2">
+                          <span className="text-zinc-400">{monster.series} · {monster.rarity}</span>
+                          <button
+                            onClick={() => toggleOwned(monster.id)}
+                            className={`px-2 py-0.5 rounded text-[11px] font-bold ${isOwned ? 'bg-[#39ff14] text-black' : 'bg-[#2d2645] text-zinc-300'}`}
+                          >
+                            {isOwned ? '✓ VAULTED' : '+ COLLECT'}
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-center py-2">
+                          <MonsterAvatar monster={monster} size="md" interactive={true} />
+                        </div>
+
+                        <div className="mt-2 space-y-2">
+                          <div>
+                            <h3 className="text-lg font-black text-white flex items-center justify-between">
+                              <span>{monster.name}</span>
+                              <span className="text-xs font-mono text-[#ffe600]">{monster.teethCount} 🦷</span>
+                            </h3>
+                            <p className="text-xs italic text-zinc-400">{monster.species}</p>
+                          </div>
+                          <p className="text-xs bg-[#121118] p-2 rounded text-zinc-300">"{monster.mischiefTrait}"</p>
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-[#4c3875]/40 grid grid-cols-2 gap-2 text-xs font-semibold">
+                          <button onClick={() => { setSelectedMonster(monster); setActiveTab('clinic'); }} className="py-1.5 px-2 bg-[#2d2645] hover:bg-[#3d345c] text-cyan-300 rounded-lg text-center">
+                            Inspect Teeth
+                          </button>
+                          <button onClick={() => { setSelectedMonster(monster); setMonsterAlias(monster.name); setActiveTab('adoption'); }} className="py-1.5 px-2 bg-[#ff007f]/20 hover:bg-[#ff007f]/30 text-[#ff007f] rounded-lg text-center">
+                            Adoption Cert
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* MONSTER LAB ("BUILD-A-FUGGLER") */}
+            {activeTab === 'lab' && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-8 py-6 space-y-6">
+                <div className="border-b border-[#4c3875]/40 pb-5 flex flex-col sm:flex-row justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                      <span>The Monster Lab</span>
+                      <span className="text-xs px-2 py-0.5 rounded bg-[#ffe600]/20 border border-[#ffe600] text-[#ffe600] font-mono">
+                        Build-A-Fuggler
+                      </span>
+                    </h1>
+                    <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xl">
+                      Stitch your own custom plush monster! Customize felt fabric colors, teeth molds, button eyes, accessories, and signature rear BUTT-on.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRandomizeLab}
+                    className="px-4 py-2 bg-[#2d2645] hover:bg-[#3d345c] text-white text-xs font-bold rounded-lg border border-[#4c3875]"
+                  >
+                    🎲 Randomize Creature
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  {/* Left Side: Live Monster Workbench & Bite Tester */}
+                  <div className="lg:col-span-5 bg-[#1e1b2e] border-2 border-dashed border-[#7a5ba8] rounded-2xl p-6 flex flex-col items-center shadow-xl">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#ff007f] font-bold self-start mb-2">
+                      Live Workbench (Click to test bite)
+                    </span>
+
+                    <MonsterAvatar
+                      monster={{
+                        id: 'custom-preview',
+                        name: labName || 'Unnamed Experiment',
+                        species: labSpecies || 'Lab Misfit',
+                        series: 'Custom Creations',
+                        rarity: labHasGold ? 'Golden BUTT-on' : 'Custom',
+                        teethType: labMouth === 'golden-teeth' ? 'Golden Grill' : labMouth === 'fangs' ? 'Vampire Fangs' : 'Human Dentures',
+                        teethCount: labTeethCount,
+                        svgConfig: {
+                          bodyColor: COLOR_PALETTES[labColorIndex].body,
+                          eyeColorLeft: labEyeLeft,
+                          eyeColorRight: labEyeRight,
+                          eyeStyle: labEyeStyle,
+                          mouthStyle: labMouth,
+                          earsStyle: labEars,
+                          stitchColor: COLOR_PALETTES[labColorIndex].stitch,
+                          hasGoldButton: labHasGold,
+                          accessory: labAccessory
+                        }
+                      }}
+                      size="lg"
+                      interactive={true}
+                    />
+
+                    <div className="w-full mt-4 bg-[#121118] p-3 rounded-lg text-xs font-mono space-y-1">
+                      <div className="flex justify-between"><span className="text-zinc-500">Name:</span> <strong className="text-white">{labName || 'Unnamed'}</strong></div>
+                      <div className="flex justify-between"><span className="text-zinc-500">Species:</span> <span className="text-zinc-300 italic">{labSpecies}</span></div>
+                      <div className="flex justify-between"><span className="text-zinc-500">Dentition:</span> <strong className="text-[#ffe600]">{labTeethCount} teeth</strong></div>
+                      <div className="flex justify-between"><span className="text-zinc-500">Rear BUTT-on:</span> <span className={labHasGold ? 'text-amber-400 font-bold' : 'text-zinc-400'}>{labHasGold ? '★ 24k Gold Button' : 'Standard Plastic'}</span></div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const newMonster = {
+                          id: `custom-${Date.now()}`,
+                          name: labName.trim() || 'Custom Fuggler',
+                          species: labSpecies.trim() || 'Feltus Customus',
+                          series: 'Custom Creations',
+                          rarity: labHasGold ? 'Golden BUTT-on' : 'Custom',
+                          teethType: labMouth === 'golden-teeth' ? 'Golden Grill' : labMouth === 'fangs' ? 'Vampire Fangs' : 'Human Dentures',
+                          teethCount: labTeethCount,
+                          buttonEyeDesc: `${labEyeStyle} arrangement`,
+                          mischiefTrait: labMischief.trim() || 'Unknown chaos',
+                          description: 'A custom-stitched funny ugly monster born in the experimental laboratory.',
+                          warningNote: 'Handle with extreme caution.',
+                          svgConfig: {
+                            bodyColor: COLOR_PALETTES[labColorIndex].body,
+                            eyeColorLeft: labEyeLeft,
+                            eyeColorRight: labEyeRight,
+                            eyeStyle: labEyeStyle,
+                            mouthStyle: labMouth,
+                            earsStyle: labEars,
+                            stitchColor: COLOR_PALETTES[labColorIndex].stitch,
+                            hasGoldButton: labHasGold,
+                            accessory: labAccessory
+                          },
+                          isCustom: true
+                        };
+                        setMonsters(prev => [newMonster, ...prev]);
+                        setOwnedIds(prev => new Set(prev).add(newMonster.id));
+                        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+                        alert(`"${newMonster.name}" has been stitched and saved to your Vault!`);
+                      }}
+                      className="w-full mt-4 py-3 bg-[#39ff14] hover:bg-[#32e012] text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-transform active:scale-95"
+                    >
+                      ✂️ Stitch & Save to Vault
+                    </button>
+                  </div>
+
+                  {/* Right Side: Customization Anatomy Controls */}
+                  <div className="lg:col-span-7 bg-[#1e1b2e] border border-[#4c3875]/60 rounded-2xl p-6 space-y-5 shadow-xl">
+                    <h2 className="font-bold text-sm text-white uppercase font-mono border-b border-[#4c3875]/40 pb-2">
+                      Monster Anatomy & Genetics
+                    </h2>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">Monster Name</label>
+                        <input type="text" value={labName} onChange={e => setLabName(e.target.value)} className="w-full bg-[#121118] border border-[#4c3875] rounded p-2 text-xs" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">Taxonomic Species</label>
+                        <input type="text" value={labSpecies} onChange={e => setLabSpecies(e.target.value)} className="w-full bg-[#121118] border border-[#4c3875] rounded p-2 text-xs" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">Signature Mischief Crime</label>
+                        <input type="text" value={labMischief} onChange={e => setLabMischief(e.target.value)} className="w-full bg-[#121118] border border-[#4c3875] rounded p-2 text-xs" />
+                      </div>
+                    </div>
+
+                    {/* Felt Color */}
+                    <div>
+                      <label className="text-xs font-mono uppercase text-zinc-400 block mb-1.5">1. Felt Body Color</label>
+                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                        {COLOR_PALETTES.map((pal, idx) => (
+                          <button
+                            key={pal.label}
+                            type="button"
+                            onClick={() => setLabColorIndex(idx)}
+                            className={`h-9 rounded-lg border-2 transition-transform ${labColorIndex === idx ? 'border-white scale-105 shadow-md' : 'border-black/50'}`}
+                            style={{ backgroundColor: pal.body }}
+                            title={pal.label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Mouth & Dentures */}
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <label className="text-xs font-mono uppercase text-zinc-400">2. Denture Mouth & Gums</label>
+                        <span className="text-xs font-mono text-[#ffe600]">{labTeethCount} teeth</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono mb-2">
+                        {[
+                          { id: 'wide-dentures', label: 'Dentures' },
+                          { id: 'snaggle-gap', label: 'Wide Gap' },
+                          { id: 'fangs', label: 'Fangs' },
+                          { id: 'golden-teeth', label: '24k Grill' }
+                        ].map(m => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setLabMouth(m.id)}
+                            className={`py-1.5 px-2 rounded border text-center ${labMouth === m.id ? 'bg-[#39ff14]/20 border-[#39ff14] text-[#39ff14] font-bold' : 'bg-[#121118] border-[#4c3875] text-zinc-400'}`}
+                          >
+                            {m.label}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="range"
+                        min="16"
+                        max="36"
+                        value={labTeethCount}
+                        onChange={e => setLabTeethCount(Number(e.target.value))}
+                        className="w-full accent-[#39ff14]"
+                      />
+                    </div>
+
+                    {/* Eye Style & Pupil Colors */}
+                    <div>
+                      <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">3. Button Eyes & Arrangement</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono mb-2">
+                        {[
+                          { id: 'buttons', label: '4-Hole' },
+                          { id: 'mismatched', label: 'Mismatched' },
+                          { id: 'googly', label: 'Googly' },
+                          { id: 'cyclops', label: 'Cyclops' }
+                        ].map(e => (
+                          <button
+                            key={e.id}
+                            type="button"
+                            onClick={() => setLabEyeStyle(e.id)}
+                            className={`py-1.5 px-2 rounded border text-center ${labEyeStyle === e.id ? 'bg-[#ffe600]/20 border-[#ffe600] text-[#ffe600] font-bold' : 'bg-[#121118] border-[#4c3875] text-zinc-400'}`}
+                          >
+                            {e.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4 text-xs font-mono">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-zinc-400">Left Eye:</span>
+                          <div className="flex gap-1">
+                            {['#ef4444', '#facc15', '#22c55e', '#ffffff'].map(c => (
+                              <button key={c} onClick={() => setLabEyeLeft(c)} className={`w-5 h-5 rounded-full border ${labEyeLeft === c ? 'border-white ring-1 ring-white' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-zinc-400">Right Eye:</span>
+                          <div className="flex gap-1">
+                            {['#38bdf8', '#a855f7', '#18181b', '#fbbf24'].map(c => (
+                              <button key={c} onClick={() => setLabEyeRight(c)} className={`w-5 h-5 rounded-full border ${labEyeRight === c ? 'border-white ring-1 ring-white' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ears & Accessories */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">4. Ears & Horns</label>
+                        <select value={labEars} onChange={e => setLabEars(e.target.value)} className="w-full bg-[#121118] border border-[#4c3875] rounded p-2 text-xs font-mono">
+                          <option value="horns">Crooked Demon Horns</option>
+                          <option value="bunny">Droopy Bunny Ears</option>
+                          <option value="bear">Teddy Bear Ears</option>
+                          <option value="alien">Alien Antenna</option>
+                          <option value="bat">Pointy Bat Wings</option>
+                          <option value="none">Bald</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">5. Mischief Accessory</label>
+                        <select value={labAccessory} onChange={e => setLabAccessory(e.target.value)} className="w-full bg-[#121118] border border-[#4c3875] rounded p-2 text-xs font-mono">
+                          <option value="drool">Drool Trail</option>
+                          <option value="patch">Stitched Felt Patch</option>
+                          <option value="bandage">Yellow Bandage</option>
+                          <option value="monocle">Distinguished Monocle</option>
+                          <option value="none">None</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Rare Gold Rear Button Toggle */}
+                    <div className="pt-2 border-t border-[#4c3875]/40 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-white">Rare Golden BUTT-on</p>
+                        <p className="text-[11px] text-zinc-400">Sew an official 24k gold button onto rear.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setLabHasGold(!labHasGold)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold font-mono ${labHasGold ? 'bg-amber-400 text-black shadow-md' : 'bg-[#121118] text-zinc-400 border border-[#4c3875]'}`}
+                      >
+                        {labHasGold ? '★ GOLD ENABLED' : 'Standard Plastic'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ADOPTION STUDIO */}
+            {activeTab === 'adoption' && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-8 py-6 space-y-6">
+                <div className="border-b border-[#4c3875]/40 pb-5 flex flex-col sm:flex-row justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-white">Official Adoption Bureau</h1>
+                    <p className="text-xs sm:text-sm text-zinc-400 mt-1">Claim legal custody and print your high-res certificate.</p>
+                  </div>
+                  <button onClick={() => window.print()} className="px-4 py-2 bg-[#ffe600] hover:bg-[#ffd000] text-black font-bold text-xs rounded-lg shadow-md">
+                    🖨️ Print Certificate
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  <div className="lg:col-span-5 bg-[#1e1b2e] border border-[#4c3875]/60 rounded-2xl p-6 space-y-4">
+                    <h2 className="font-bold text-sm text-white uppercase font-mono">Adoption Credentials</h2>
+                    <div>
+                      <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">Select Monster</label>
+                      <select
+                        value={selectedMonster.id}
+                        onChange={(e) => {
+                          const m = monsters.find(x => x.id === e.target.value);
+                          if (m) { setSelectedMonster(m); setMonsterAlias(m.name); }
+                        }}
+                        className="w-full bg-[#121118] border border-[#4c3875] rounded-lg p-2 text-xs"
+                      >
+                        {monsters.map(m => (
+                          <option key={m.id} value={m.id}>{m.name} ({m.series})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">Sworn Guardian</label>
+                      <input type="text" value={adopterName} onChange={e => setAdopterName(e.target.value)} className="w-full bg-[#121118] border border-[#4c3875] rounded-lg p-2 text-xs" />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">Alias / Nickname</label>
+                      <input type="text" value={monsterAlias} onChange={e => setMonsterAlias(e.target.value)} className="w-full bg-[#121118] border border-[#4c3875] rounded-lg p-2 text-xs" />
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-[#4c3875]/40 text-xs">
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={pledge1} onChange={e => setPledge1(e.target.checked)} className="accent-[#ff007f]" />
+                        <span>I acknowledge this creature has real dental prosthetics.</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input type="checkbox" checked={pledge2} onChange={e => setPledge2(e.target.checked)} className="accent-[#ff007f]" />
+                        <span>I accept that adopting it will likely ruin my life.</span>
+                      </label>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setOwnedIds(prev => new Set(prev).add(selectedMonster.id));
+                        setAdoptedToday(true);
+                        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+                      }}
+                      className="w-full py-3 bg-[#ff007f] hover:bg-[#d6006b] font-black text-xs uppercase tracking-wide rounded-xl shadow-lg"
+                    >
+                      {adoptedToday ? 'Ceremony Completed! ✓' : 'Swear Oath & Seal Adoption'}
+                    </button>
+                  </div>
+
+                  {/* Certificate Frame */}
+                  <div className="lg:col-span-7 flex flex-col items-center">
+                    <div id="print-certificate-container" className="w-full max-w-lg bg-[#fdfbf7] text-[#1c1917] rounded-xl p-6 border-4 border-[#78350f] shadow-2xl relative font-serif">
+                      <div className="text-center space-y-1 pb-3 border-b-2 border-[#b45309]/50">
+                        <p className="text-[9px] uppercase font-mono tracking-widest text-[#78350f] font-bold">★ Official Bureau of Funny Ugly Monsters ★</p>
+                        <h2 className="text-2xl font-black uppercase text-[#451a03]">Certificate of Adoption</h2>
+                        <p className="text-[10px] italic text-[#78350f]">Issued under the International Mischief Act</p>
+                      </div>
+
+                      <div className="py-4 space-y-3 text-center text-xs">
+                        <p>This certifies that custody of the peculiar creature:</p>
+                        <div className="flex items-center justify-center gap-4 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                          <MonsterAvatar monster={selectedMonster} size="sm" interactive={false} />
+                          <div className="text-left font-sans">
+                            <h3 className="text-base font-black text-[#451a03]">{monsterAlias}</h3>
+                            <p className="text-[10px] italic text-[#78350f]">{selectedMonster.species}</p>
+                            <p className="text-[10px] font-mono text-[#b45309]">{selectedMonster.teethCount} teeth · {selectedMonster.series}</p>
+                          </div>
+                        </div>
+
+                        <p>Has been transferred to the sworn care of:</p>
+                        <p className="text-lg font-bold font-sans text-[#451a03] border-b-2 border-dashed border-[#78350f] max-w-xs mx-auto pb-1">
+                          {adopterName || 'The Brave Adopter'}
+                        </p>
+                        <p className="text-[10px] font-mono text-amber-900 bg-amber-100 p-2 rounded">
+                          ⚠️ WARNING: May bite toes, steal left socks, and stare unblinkingly.
+                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t-2 border-[#b45309]/50 flex items-center justify-between text-[10px] font-mono text-[#78350f]">
+                        <div className="text-center">
+                          <span className="text-sm">🦷</span>
+                          <p className="text-[8px] font-bold">OFFICIAL SEAL</p>
+                        </div>
+                        <div className="text-center border-t border-[#78350f] px-4">
+                          <p>{adopterName}</p>
+                          <p className="text-[8px] font-bold uppercase">Adopter Signature</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* FIELD GUIDE & CODEX */}
+            {activeTab === 'guide' && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-8 py-6 space-y-6">
+                <div className="border-b border-[#4c3875]/40 pb-5">
+                  <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-3">
+                    <span>Fuggler Collector's Field Guide</span>
+                    <span className="text-xs px-2 py-0.5 rounded bg-[#39ff14]/20 border border-[#39ff14] text-[#39ff14] font-mono">
+                      8 Series Documented
+                    </span>
+                  </h1>
+                  <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-xl">
+                    Taxonomic reference guide to all 42 known specimens across 8 official series.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {['Series 1', 'Series 2', 'Series 3', 'Lab Misfits', 'Snuggler Edition', 'Fart Faces', 'Gold Chase', 'Glow In The Dark'].map(s => {
+                    const list = monsters.filter(m => m.series === s);
+                    const owned = list.filter(m => ownedIds.has(m.id)).length;
+                    return (
+                      <div key={s} className="bg-[#1e1b2e] border border-[#4c3875] rounded-xl p-4 space-y-2">
+                        <div className="flex justify-between font-bold">
+                          <span>{s}</span>
+                          <span className="text-xs text-[#ffe600] font-mono">{list.length} Fugglers</span>
+                        </div>
+                        <div className="text-xs text-zinc-400 font-mono">
+                          Vaulted: <strong className="text-[#39ff14]">{owned}</strong> / {list.length}
+                        </div>
+                        <button
+                          onClick={() => { setFilters(f => ({ ...f, series: s })); setActiveTab('vault'); }}
+                          className="w-full mt-2 py-1.5 bg-[#2d2645] hover:bg-[#3d345c] text-xs font-mono rounded text-center"
+                        >
+                          View in Vault →
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* TEETH CLINIC */}
+            {activeTab === 'clinic' && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-8 py-6 space-y-6">
+                <div className="border-b border-[#4c3875]/40 pb-5">
+                  <h1 className="text-2xl sm:text-3xl font-black text-white">Dental Inspection Clinic</h1>
+                  <p className="text-xs sm:text-sm text-zinc-400 mt-1">Examine and clean dental prosthetics on your monsters.</p>
+                </div>
+
+                <div className="bg-[#450a0a] rounded-3xl p-6 border-4 border-[#292524] max-w-xl mx-auto flex flex-col items-center justify-between min-h-[300px]">
+                  <div className="w-full text-center text-xs font-mono uppercase text-pink-300 font-bold mb-2">Maxillary Dental Arch</div>
+                  <div className="flex gap-1.5 flex-wrap justify-center">
+                    {clinicTeeth.slice(0, 14).map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setClinicTeeth(prev => prev.map(x => x.id === t.id ? { ...x, isCleaned: true } : x));
+                        }}
+                        className={`w-7 h-10 rounded-b border font-mono text-[9px] flex items-end justify-center pb-1 ${t.isCleaned ? 'bg-white border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.6)]' : 'bg-[#fbf8eb] border-stone-300'}`}
+                      >
+                        {t.id + 1}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-1.5 flex-wrap justify-center mt-12">
+                    {clinicTeeth.slice(14).map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => {
+                          setClinicTeeth(prev => prev.map(x => x.id === t.id ? { ...x, isCleaned: true } : x));
+                        }}
+                        className={`w-7 h-10 rounded-t border font-mono text-[9px] flex items-start justify-center pt-1 ${t.isCleaned ? 'bg-white border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.6)]' : 'bg-[#fbf8eb] border-stone-300'}`}
+                      >
+                        {t.id + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="w-full text-center text-xs font-mono uppercase text-pink-300 font-bold mt-2">Mandibular Dental Arch</div>
+                </div>
+
+                <div className="text-center">
+                  <p className="text-xs font-mono text-[#39ff14]">
+                    Cleaned: {clinicTeeth.filter(t => t.isCleaned).length} / {clinicTeeth.length} teeth
+                  </p>
+                </div>
+              </div>
+            )}
+          </main>
+
+          {/* Mobile bottom nav */}
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 h-14 bg-[#121118]/95 backdrop-blur-md border-t border-[#4c3875]/50 flex items-center justify-around z-30 px-2 text-[10px] font-mono">
+            <button onClick={() => setActiveTab('vault')} className={`py-1 ${activeTab === 'vault' ? 'text-[#39ff14] font-bold' : 'text-zinc-400'}`}>Vault</button>
+            <button onClick={() => setActiveTab('lab')} className={`py-1 ${activeTab === 'lab' ? 'text-[#ffe600] font-bold' : 'text-zinc-400'}`}>Lab</button>
+            <button onClick={() => setActiveTab('adoption')} className={`py-1 ${activeTab === 'adoption' ? 'text-[#ff007f] font-bold' : 'text-zinc-400'}`}>Adopt</button>
+            <button onClick={() => setActiveTab('guide')} className={`py-1 ${activeTab === 'guide' ? 'text-[#a855f7] font-bold' : 'text-zinc-400'}`}>Codex</button>
+            <button onClick={() => setActiveTab('clinic')} className={`py-1 ${activeTab === 'clinic' ? 'text-cyan-400 font-bold' : 'text-zinc-400'}`}>Dentist</button>
+          </nav>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
